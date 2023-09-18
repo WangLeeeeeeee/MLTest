@@ -6,8 +6,12 @@ import progressbar
 from astropy.time import Time
 
 GPS_week = 1808
-GPS_I = np.zeros((8640000,32),dtype=int);
-GPS_Q = np.zeros((8640000,32),dtype=int);
+GPS_I_L1 = np.zeros((8640000,32),dtype=int);
+GPS_Q_L1 = np.zeros((8640000,32),dtype=int);
+GPS_I_L2 = np.zeros((8640000,32),dtype=int);
+GPS_Q_L2 = np.zeros((8640000,32),dtype=int);
+GPS_I_L5 = np.zeros((8640000,32),dtype=int);
+GPS_Q_L5 = np.zeros((8640000,32),dtype=int);
 
 def gps2utc(GPS_week, GPS_tow):
     GPS_sec = GPS_week*7*86400 + GPS_tow 
@@ -42,7 +46,60 @@ def determineSV(SVID):
         Sat_con = 'QZSS'
     else:
         print('Unknow SVID: ',SVID)
+        Sat_num = SVID
+        Sat_num = 'Unknown'
     return Sat_num, Sat_con
+
+def determineST(SNum):
+    if SNum == 0 or SNum == 6 or SNum == 8 or SNum == 24:
+        Sig_type = 'L1CA'
+    elif SNum == 1 or SNum == 9:
+        Sig_type = 'L1P'
+    elif SNum == 2 or SNum == 10:
+        Sig_type = 'L2P'
+    elif SNum == 3 or SNum == 7:
+        Sig_type == 'L2C'
+    elif SNum == 4 or SNum == 15 or SNum == 25 or SNum == 26:
+        Sig_type == 'L5'
+    elif SNum == 5 or SNum == 32:
+        Sig_type == 'L1C'
+    elif SNum == 11:
+        Sig_type == 'L2CA'
+    elif SNum == 12:
+        Sig_type == 'L3'
+    elif SNum == 13:
+        Sig_type == 'B1C'
+    elif SNum == 14:
+        Sig_type == 'B2a'
+    elif SNum == 17:
+        Sig_type == 'E1'
+    elif SNum == 19:
+        Sig_type == 'E6'
+    elif SNum == 20:
+        Sig_type == 'E5a'
+    elif SNum == 21:
+        Sig_type == 'E5b'
+    elif SNum == 22:
+        Sig_type == 'E5 AltBOC'
+    elif SNum == 27:
+        Sig_type == 'L6'
+    elif SNum == 28:
+        Sig_type == 'B1I'
+    elif SNum == 29:
+        Sig_type == 'B2I'
+    elif SNum == 30:
+        Sig_type == 'B3I'
+    elif SNum == 33:
+        Sig_type == 'L1S'
+    elif SNum == 34:
+        Sig_type == 'B2b'
+    elif SNum == 38:
+        Sig_type == 'L1CB'
+    elif SNum == 39:
+        Sig_type == 'L5S'
+    else:
+        Sig_type == 'Unknown'
+    return Sig_type
 
 def _count_generator(reader):
     b = reader(1024 * 1024)
@@ -68,7 +125,7 @@ with open(filepath,'r') as filestream:
     lineNum = 0;
     timeStartFlag = 0;
     for line in filestream:
-        bar.update(lineNum+1)
+        bar.update(lineNum+=1)
         currentline = line.split(",")
         GPS_tow = float(currentline[0])
         if timeStartFlag == 0:
@@ -88,10 +145,20 @@ with open(filepath,'r') as filestream:
         Carrier_cur = float(currentline[3])
         I_cur = int(currentline[4])
         Q_cur = int(currentline[5])
-        Sat_num,Sat_con = determineSV(SVID_cur)
         if Sat_con == 'GPS':
-            GPS_I[timeIndex,Sat_num-1] = I_cur
-            GPS_Q[timeIndex,Sat_num-1] = Q_cur
+            SigType = determineST(SNum); 
+            Sat_num,Sat_con = determineSV(SVID_cur)
+            if SigType == 'L1CA':
+                GPS_I_L1[timeIndex,Sat_num-1] = I_cur
+                GPS_Q_L1[timeIndex,Sat_num-1] = Q_cur
+            elif SigType == 'L2C':
+                GPS_I_L2[timeIndex,Sat_num-1] = I_cur
+                GPS_Q_L2[timeIndex,Sat_num-1] = Q_cur
+            elif SigType == 'L5':
+                GPS_I_L5[timeIndex,Sat_num-1] = I_cur
+                GPS_Q_L5[timeIndex,Sat_num-1] = Q_cur
+            else:
+                print('Not the one we want')            
     bar.finish()
             
     # Calculate S4
