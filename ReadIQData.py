@@ -4,14 +4,16 @@ import numpy as np
 import math
 import progressbar
 from astropy.time import Time
+import time
+import pickle
 
 GPS_week = 1808
-GPS_I_L1 = np.zeros((8640000,32),dtype=int);
-GPS_Q_L1 = np.zeros((8640000,32),dtype=int);
-GPS_I_L2 = np.zeros((8640000,32),dtype=int);
-GPS_Q_L2 = np.zeros((8640000,32),dtype=int);
-GPS_I_L5 = np.zeros((8640000,32),dtype=int);
-GPS_Q_L5 = np.zeros((8640000,32),dtype=int);
+#GPS_I_L1 = np.zeros((8640000,32),dtype=int);
+#GPS_Q_L1 = np.zeros((8640000,32),dtype=int);
+#GPS_I_L2 = np.zeros((8640000,32),dtype=int);
+#GPS_Q_L2 = np.zeros((8640000,32),dtype=int);
+#GPS_I_L5 = np.zeros((8640000,32),dtype=int);
+#GPS_Q_L5 = np.zeros((8640000,32),dtype=int);
 
 def gps2utc(GPS_week, GPS_tow):
     GPS_sec = GPS_week*7*86400 + GPS_tow 
@@ -58,47 +60,47 @@ def determineST(SNum):
     elif SNum == 2 or SNum == 10:
         Sig_type = 'L2P'
     elif SNum == 3 or SNum == 7:
-        Sig_type == 'L2C'
+        Sig_type = 'L2C'
     elif SNum == 4 or SNum == 15 or SNum == 25 or SNum == 26:
-        Sig_type == 'L5'
+        Sig_type = 'L5'
     elif SNum == 5 or SNum == 32:
-        Sig_type == 'L1C'
+        Sig_type = 'L1C'
     elif SNum == 11:
-        Sig_type == 'L2CA'
+        Sig_type = 'L2CA'
     elif SNum == 12:
-        Sig_type == 'L3'
+        Sig_type = 'L3'
     elif SNum == 13:
-        Sig_type == 'B1C'
+        Sig_type = 'B1C'
     elif SNum == 14:
-        Sig_type == 'B2a'
+        Sig_type = 'B2a'
     elif SNum == 17:
-        Sig_type == 'E1'
+        Sig_type = 'E1'
     elif SNum == 19:
-        Sig_type == 'E6'
+        Sig_type = 'E6'
     elif SNum == 20:
-        Sig_type == 'E5a'
+        Sig_type = 'E5a'
     elif SNum == 21:
-        Sig_type == 'E5b'
+        Sig_type = 'E5b'
     elif SNum == 22:
-        Sig_type == 'E5 AltBOC'
+        Sig_type = 'E5 AltBOC'
     elif SNum == 27:
-        Sig_type == 'L6'
+        Sig_type = 'L6'
     elif SNum == 28:
-        Sig_type == 'B1I'
+        Sig_type = 'B1I'
     elif SNum == 29:
-        Sig_type == 'B2I'
+        Sig_type = 'B2I'
     elif SNum == 30:
-        Sig_type == 'B3I'
+        Sig_type = 'B3I'
     elif SNum == 33:
-        Sig_type == 'L1S'
+        Sig_type = 'L1S'
     elif SNum == 34:
-        Sig_type == 'B2b'
+        Sig_type = 'B2b'
     elif SNum == 38:
-        Sig_type == 'L1CB'
+        Sig_type = 'L1CB'
     elif SNum == 39:
-        Sig_type == 'L5S'
+        Sig_type = 'L5S'
     else:
-        Sig_type == 'Unknown'
+        Sig_type = 'Unknown'
     return Sig_type
 
 def _count_generator(reader):
@@ -113,66 +115,16 @@ def fileLineCount(filepath):
         lineCount = sum(buffer.count(b'\n') for buffer in c_generator)
     return lineCount
         
-        
-filepath = "/home/wangleu/Documents/share/ismroutput.txt"  
-lineCount = fileLineCount(filepath) 
-with open(filepath,'r') as filestream:
-    # Read IQ data and save them to matrix
-    # the rwo is time in 10ms and column is PRN
-    bar = progressbar.ProgressBar(maxval=lineCount,\
-            widgets=[progressbar.Bar('=','[', ']'),' ',progressbar.Percentage()])
-    bar.start()
-    lineNum = 0;
-    timeStartFlag = 0;
-    for line in filestream:
-        bar.update(lineNum+=1)
-        currentline = line.split(",")
-        GPS_tow = float(currentline[0])
-        if timeStartFlag == 0:
-            # Determine the first epoch
-            utc_hou,utc_min,utc_sec = gps2utc(GPS_week,GPS_tow) # cost too much time
-            UTC_curSec = int((utc_hou*3600 + utc_min*60 + utc_sec)*100)
-            timeIndex = UTC_curSec
-            timePre = GPS_tow
-            timeStartFlag = 1
-        else:
-            if GPS_tow != timePre:
-                timeIndex = timeIndex + int((GPS_tow-timePre)*100)
-                timePre = GPS_tow
-        #utc_hou,utc_min,utc_sec = gps2utc(GPS_week,GPS_tow) # cost too much time
-        #UTC_curSec = int((utc_hou*3600 + utc_min*60 + utc_sec)*100)
-        SVID_cur = int(currentline[1])
-        Carrier_cur = float(currentline[3])
-        I_cur = int(currentline[4])
-        Q_cur = int(currentline[5])
-        if Sat_con == 'GPS':
-            SigType = determineST(SNum); 
-            Sat_num,Sat_con = determineSV(SVID_cur)
-            if SigType == 'L1CA':
-                GPS_I_L1[timeIndex,Sat_num-1] = I_cur
-                GPS_Q_L1[timeIndex,Sat_num-1] = Q_cur
-            elif SigType == 'L2C':
-                GPS_I_L2[timeIndex,Sat_num-1] = I_cur
-                GPS_Q_L2[timeIndex,Sat_num-1] = Q_cur
-            elif SigType == 'L5':
-                GPS_I_L5[timeIndex,Sat_num-1] = I_cur
-                GPS_Q_L5[timeIndex,Sat_num-1] = Q_cur
-            else:
-                print('Not the one we want')            
-    bar.finish()
-            
-    # Calculate S4
+def ComputeSIraw(GPS_I,GPS_Q,GPS_SI_raw):
     # 1. Calculate SI_raw by NBP and WBP
-    GPS_SIraw = zeros((8640000,32),dtype=int)
     for i in range(32):
         for j in range(8640000-1):
             if GPS_I[j,i] and GPS_Q[j,i] and GPS_I[j+1,i] and GPS_Q[j+1,i]:
                 GPS_SIraw[j,i] = math.pow(GPS_I[j,i]+GPS_I[j+1,i],2) + math.pow(GPS_Q[j,i]+GPS_Q[j+1,i],2) - math.pow(GPS_I[j,i],2) - math.pow(GPS_I[j+1,i],2) - math.pow(GPS_Q[j,i],2) - math.pow(GPS_Q[j+1,i],2)
-    # delete the GPS_I and GPS_Q to save memory
-    del(GPS_I)
-    del(GPS_Q)
+ 
+def ComputeS4(GPS_SI_raw,GPS_S4):
     # 2. Compute the detrended SI_raw, using the mean over 60s
-    GPS_SIdet = zeros((8640000,32),dtype=int)
+    GPS_SIdet = np.zeros((8640000,32),dtype=int)
     for i in range(32):
         for j in range(8640000-6000-1):
             if np.all(GPS_SIraw[j:j+5999,i]):
@@ -180,7 +132,6 @@ with open(filepath,'r') as filestream:
                 GPS_SIdet[j:j+5999,i] = np.divide(GPS_SIraw[j:j+5999,i],SI_trend)
     # 3. Compute S4 index
     del(GPS_SIraw)
-    GPS_S4 = zeros((1440,32),dtype=int)
     for i in range(10):
         while j < 86400:
             if np.all(GPS_SIdet[j:j+5999,i]):
@@ -192,4 +143,86 @@ with open(filepath,'r') as filestream:
                 j += 1
 
 
+        
+#filepath = "/home/wangleu/Documents/share/ismroutput.txt"  
+#lineCount = fileLineCount(filepath) 
+#with open(filepath,'r') as filestream:
+#    # Read IQ data and save them to matrix
+#    # the rwo is time in 10ms and column is PRN
+#    bar = progressbar.ProgressBar(maxval=lineCount,\
+#            widgets=[progressbar.Bar('=','[', ']'),' ',progressbar.Percentage()])
+#    bar.start()
+#    lineNum = 0;
+#    timeStartFlag = 0;
+#    for line in filestream:
+#        lineNum += 1
+#        currentline = line.split(",")
+#        GPS_tow = float(currentline[0])
+#        if timeStartFlag == 0:
+#            # Determine the first epoch
+#            utc_hou,utc_min,utc_sec = gps2utc(GPS_week,GPS_tow) # cost too much time
+#            UTC_curSec = int((utc_hou*3600 + utc_min*60 + utc_sec)*100)
+#            timeIndex = UTC_curSec
+#            timePre = GPS_tow
+#            timeStartFlag = 1
+#        else:
+#            if GPS_tow != timePre:
+#                timeIndex = timeIndex + int((GPS_tow-timePre)*100)
+#                timePre = GPS_tow
+#        #utc_hou,utc_min,utc_sec = gps2utc(GPS_week,GPS_tow) # cost too much time
+#        #UTC_curSec = int((utc_hou*3600 + utc_min*60 + utc_sec)*100)
+#        SVID_cur = int(currentline[1])
+#        SNum = int(currentline[2])
+#        Carrier_cur = float(currentline[3])
+#        I_cur = int(currentline[4])
+#        Q_cur = int(currentline[5])
+#        Sat_num,Sat_con = determineSV(SVID_cur)
+#        if Sat_con == 'GPS':
+#            bar.update(lineNum)
+#            if lineNum >= 0.02 * lineCount: # Output some data for test
+#                break
+#            SigType = determineST(SNum); 
+#            if SigType == 'L1CA':
+#                GPS_I_L1[timeIndex,Sat_num-1] = I_cur
+#                GPS_Q_L1[timeIndex,Sat_num-1] = Q_cur
+#            elif SigType == 'L2C':
+#                GPS_I_L2[timeIndex,Sat_num-1] = I_cur
+#                GPS_Q_L2[timeIndex,Sat_num-1] = Q_cur
+#            elif SigType == 'L5':
+#                GPS_I_L5[timeIndex,Sat_num-1] = I_cur
+#                GPS_Q_L5[timeIndex,Sat_num-1] = Q_cur
+#            else:
+#                print('Not the one we want')            
+#    bar.finish()
+#    np.save('GPS_I_L1.npy', GPS_I_L1)
+#    np.save('GPS_Q_L1.npy', GPS_Q_L1)
+#    np.save('GPS_I_L2.npy', GPS_I_L2)
+#    np.save('GPS_Q_L2.npy', GPS_Q_L2)
+#    np.save('GPS_I_L5.npy', GPS_I_L5)
+#    np.save('GPS_Q_L5.npy', GPS_Q_L5)
+##    with open('GPS_IQ_data.pickle','wb') as f:
+##        pickle.dump(GPS_I_L1, f)
+##        pickle.dump(GPS_Q_L1, f)
+##        pickle.dump(GPS_I_L2, f)
+##        pickle.dump(GPS_Q_L2, f)
+##        pickle.dump(GPS_I_L5, f)
+##        pickle.dump(GPS_Q_L5, f)
+            
+# Load saved pickle data
+GPS_I_L1 = np.load('GPS_I_L1.npy')
+GPS_Q_L1 = np.load('GPS_Q_L1.npy')
+#with open('GPS_IQ_data.pickle', 'rb') as f:
+#    GPS_I_L1 = pickle.load(f)
+#    GPS_Q_L1 = pickle.load(f)
+# Compute S4
+GPS_SIraw_L1 = np.zeros((8640000,32),dtype=int)
+ComputeSIraw(GPS_I_L1,GPS_Q_L1,GPS_SI_raw_L1); 
+del(GPS_I_L1)
+del(GPS_Q_L1)
+GPS_S4_L1 = zeros((1440,32),dtype=int)
+ComputeS4(SI_raw_L1,GPS_S4_L1)
+del(GPS_SIraw_L1)
+# Svae S4
+with open('GPS_S4_data.pickle','wb') as f:
+    pickle.dump(GPS_S4_L1, f)
 
